@@ -1,5 +1,5 @@
 -- ================================================
--- S
+-- SoraUI - UI modern to Roblox
 -- ================================================
 
 local SoraUI = {}
@@ -10,7 +10,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
--- ====================== ТЕМИ ======================
+-- ======================THEMES ======================
 local Themes = {
     Dark = {
         Background = Color3.fromRGB(18, 18, 24),
@@ -49,7 +49,9 @@ local Themes = {
 local CurrentTheme = Themes.Dark
 local ConfigPath = "SoraUI_Config.json"
 
--- ====================== ДОПОМІЖНІ ФУНКЦІЇ ======================
+-- ====================== 
+Helped Functions
+======================
 local function Create(class, props)
     local obj = Instance.new(class)
     for k, v in pairs(props or {}) do
@@ -494,15 +496,17 @@ function SoraUI:CreateWindow(options)
             Parent = Notif
         })
 
-        Tween(Notif, {Position = UDim2.new(1, -420, 1, -170)}, 0.6)
+        Tween(Notif, {Position = UDim2.new(1, 
+-420, 1, -170)}, 0.6)
         task.delay(duration, function()
             Tween(Notif, {Position = UDim2.new(1, 50, 1, -170)}, 0.6)
             task.wait(0.7)
             Notif:Destroy()
         end)
     end
-
-    self:Notify("SoraUI v6.0 Великий Хаб завантажено успішно! (1500+ рядків)", 5)
+——AAAAAAAAAAAAAA
+—why :(   oh no
+    self:Notify("SoraUI loading good(1500+)", 5)
 
     return self
 end
