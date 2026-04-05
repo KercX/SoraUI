@@ -17,5 +17,5 @@ $${\color{blue}Clean \space design \cdot Smooth \space animations \cdot Config \
 ### 🚀 Installation
 
 ```lua
-local SoraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/YOURUSERNAME/SoraUI/main/SoraUI.lua"))()
+local SoraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/KercX/SoraUI/main/SoraUI.lua"))()
 local Window = SoraUI:CreateWindow({Title = "My Hub"})
