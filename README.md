@@ -1,21 +1,25 @@
-# SoraUI v6.0
+### SoraUI — Roblox UI Library
 
-![SoraUI Banner](https://raw.githubusercontent.com/YOURUSERNAME/SoraUI/main/banner.png)
+## 🚀 About
 
-**Modern & Powerful Roblox UI Library**  
-Inspired by **WindUI**, **Rayfield**, **Orion** and **Kavo**.
+SoraUI is a modern Roblox UI library for creating script hubs and custom interfaces.
 
-$${\color{blue}Clean \space design \cdot Smooth \space animations \cdot Config \space saving \cdot Multiple \space themes}$$
+It includes:
+	•	Draggable window system
+	•	Close / Open UI system
+	•	Bottom notifications
+	•	Tabs with icons
+	•	Buttons / Toggles / Sliders
+	•	Smooth animations
 
-### ✨ Features
-- 4 beautiful themes (Dark, Neon, Ocean, Light)
-- Full config saving with flags
-- Draggable window + smooth animations
-- Many UI elements with `local ScreenGui` and local variables
-- Notification system
+Inspired by modern UI libraries like WindUI and Rayfield.
 
-### 🚀 Installation
+⸻
 
-```lua
-local SoraUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/KercX/SoraUI/refs/heads/main/main/main.lua"))()
-local Window = SoraUI:CreateWindow({Title = "My Hub"})
+## ✨ Features
+	•	✔ Drag & drop UI
+	•	✔ Clean dark theme
+	•	✔ Tab system
+	•	✔ Icon support (star / space / player / game)
+	•	✔ Bottom notifications
+	•	✔ Lightweight and fast
