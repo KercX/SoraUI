@@ -1,24 +1,26 @@
 --[[
-    SoraUI - Advanced UI Library for Roblox Executors
-    
+    SoraUI - Ultimate UI Library for Roblox Executors
+    Version: 11.0.0 
+    Author: KercX
+
+
 
     Features:
-    - 120+ built-in icons (IconManager)
-    - Full key system (license activation, HWID, expiry, online/offline)
-    - 30+ control types (buttons, sliders, dropdowns, color pickers, keybinds, listbox, treeview, canvas, chart, console, property grid, toolbar, menubar, statusbar, etc.)
-    - Multiple resizable/draggable windows
-    - Theme system (Dark/Light/Custom) with gradients & shadows
+    - Custom modern glassmorphism design
+    - Custom icon system (80+ built-in, extensible)
+    - Custom font support (Gotham, Segoe, etc.)
+    - Resizable, draggable windows (not fullscreen)
+    - Full key system (license activation, HWID, expiry, offline/online)
+    - 30+ UI controls (buttons, toggles, sliders, inputs, dropdowns, color pickers, keybinds, progress bars, checkboxes, radio groups, accordions, listboxes, treeviews, canvas, chart, console, property grid, toolbar, status bar, menu bar, and more)
+    - Theme system (Dark/Light/Custom) with live switching
     - Notification queue with icons
-    - Global keybinds
-    - Tooltips
+    - Global keybind manager
+    - Tooltip system with delay
     - Settings persistence (Attribute/DataStore)
     - Smooth animations (TweenService)
-    - Fully documented
+    - Fully documented API
 --]]
 
--- ============================================================================
---  SERVICES & SETUP
--- ============================================================================
 local SoraUI = {}
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -26,8 +28,8 @@ local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local ContextActionService = game:GetService("ContextActionService")
 local DataStoreService = game:GetService("DataStoreService")
+local TextService = game:GetService("TextService")
 local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -43,7 +45,7 @@ local config = {
     WindowBorder = true,
     WindowBorderColor = Color3.fromHex("#313244"),
     WindowBorderThickness = 1.5,
-    WindowSnapThreshold = 20,   -- screen edge snapping (pixels)
+    WindowSnapThreshold = 20,
     SaveWindowPosition = true,
     
     -- Visual
@@ -53,17 +55,22 @@ local config = {
     Font = Enum.Font.Gotham,
     FontBold = Enum.Font.GothamBold,
     FontMedium = Enum.Font.GothamMedium,
+    FontLight = Enum.Font.Gotham,
     ScrollBarThickness = 6,
     TooltipDelay = 0.5,
     UseGradients = true,
     UseShadows = true,
+    
+    -- Custom fonts (override)
+    CustomFont = nil,          -- e.g., "rbxasset://fonts/Inter.ttf"
+    CustomFontBold = nil,
     
     -- Saving
     SaveMethod = "Attribute",   -- "Attribute" or "DataStore"
     DataStoreName = "SoraUI_Settings",
     
     -- Key System
-    KeySystemEnabled = true,
+    KeySystemEnabled = true,    -- set to false to disable license requirement
     KeyAPIURL = nil,
     UseOnlineValidation = false,
     
@@ -184,78 +191,143 @@ local function getColor(key)
     return config.Theme[key] or Color3.new(1,1,1)
 end
 
+local function getFont(weight)
+    if weight == "bold" and config.CustomFontBold then
+        return config.CustomFontBold
+    elseif config.CustomFont then
+        return config.CustomFont
+    end
+    if weight == "bold" then return config.FontBold end
+    if weight == "light" then return config.FontLight end
+    return config.Font
+end
+
 -- ============================================================================
---  ICON MANAGER (120+ icons, WindUI style)
+--  CUSTOM ICON MANAGER (modern, extensible)
 -- ============================================================================
 local IconManager = {}
 
+-- Built-in icons (Material Design style using Roblox asset IDs)
 local Icons = {
     -- Navigation
-    home = "rbxassetid://6031094066", dashboard = "rbxassetid://6031094066",
-    menu = "rbxassetid://6031093921", back = "rbxassetid://6031093518",
-    forward = "rbxassetid://6031093529", refresh = "rbxassetid://6031093723",
-    search = "rbxassetid://6031093787", settings = "rbxassetid://6031094371",
+    home = "rbxassetid://6031094066",
+    dashboard = "rbxassetid://6031094066",
+    menu = "rbxassetid://6031093921",
+    back = "rbxassetid://6031093518",
+    forward = "rbxassetid://6031093529",
+    refresh = "rbxassetid://6031093723",
+    search = "rbxassetid://6031093787",
+    settings = "rbxassetid://6031094371",
     -- Actions
-    add = "rbxassetid://6031093506", remove = "rbxassetid://6031093679",
-    delete = "rbxassetid://6031093636", edit = "rbxassetid://6031093746",
-    save = "rbxassetid://6031093763", copy = "rbxassetid://6031093618",
-    cut = "rbxassetid://6031093629", paste = "rbxassetid://6031093967",
-    download = "rbxassetid://6031093682", upload = "rbxassetid://6031094085",
-    link = "rbxassetid://6031093886", external = "rbxassetid://6031093708",
-    -- Window
-    close = "rbxassetid://6031094798", minimize = "rbxassetid://6031094563",
+    add = "rbxassetid://6031093506",
+    remove = "rbxassetid://6031093679",
+    delete = "rbxassetid://6031093636",
+    edit = "rbxassetid://6031093746",
+    save = "rbxassetid://6031093763",
+    copy = "rbxassetid://6031093618",
+    cut = "rbxassetid://6031093629",
+    paste = "rbxassetid://6031093967",
+    download = "rbxassetid://6031093682",
+    upload = "rbxassetid://6031094085",
+    link = "rbxassetid://6031093886",
+    external = "rbxassetid://6031093708",
+    -- Window controls
+    close = "rbxassetid://6031094798",
+    minimize = "rbxassetid://6031094563",
     maximize = "rbxassetid://6031094446",
+    restore = "rbxassetid://6031094446",
     -- Status
-    check = "rbxassetid://6031093550", close_circle = "rbxassetid://6031094798",
-    info = "rbxassetid://6031093861", warning = "rbxassetid://6031094119",
-    error = "rbxassetid://6031093699", success = "rbxassetid://6031093798",
-    lock = "rbxassetid://6031093910", unlock = "rbxassetid://6031093934",
+    check = "rbxassetid://6031093550",
+    close_circle = "rbxassetid://6031094798",
+    info = "rbxassetid://6031093861",
+    warning = "rbxassetid://6031094119",
+    error = "rbxassetid://6031093699",
+    success = "rbxassetid://6031093798",
+    lock = "rbxassetid://6031093910",
+    unlock = "rbxassetid://6031093934",
     key = "rbxassetid://6031093871",
     -- Users
-    user = "rbxassetid://6031094101", group = "rbxassetid://6031093847",
+    user = "rbxassetid://6031094101",
+    group = "rbxassetid://6031093847",
     add_user = "rbxassetid://6031093506",
     -- Media
-    image = "rbxassetid://6031093839", video = "rbxassetid://6031094129",
-    music = "rbxassetid://6031093990", volume_up = "rbxassetid://6031094142",
-    volume_down = "rbxassetid://6031094131", volume_off = "rbxassetid://6031094153",
+    image = "rbxassetid://6031093839",
+    video = "rbxassetid://6031094129",
+    music = "rbxassetid://6031093990",
+    volume_up = "rbxassetid://6031094142",
+    volume_down = "rbxassetid://6031094131",
+    volume_off = "rbxassetid://6031094153",
     -- File/Folder
-    folder = "rbxassetid://6031093815", file = "rbxassetid://6031093829",
+    folder = "rbxassetid://6031093815",
+    file = "rbxassetid://6031093829",
     -- Arrows
-    arrow_left = "rbxassetid://6031093518", arrow_right = "rbxassetid://6031093529",
-    arrow_up = "rbxassetid://6031093543", arrow_down = "rbxassetid://6031093499",
+    arrow_left = "rbxassetid://6031093518",
+    arrow_right = "rbxassetid://6031093529",
+    arrow_up = "rbxassetid://6031093543",
+    arrow_down = "rbxassetid://6031093499",
     -- Text
-    bold = "rbxassetid://6031093560", italic = "rbxassetid://6031093897",
-    underline = "rbxassetid://6031094073", align_left = "rbxassetid://6031093479",
-    align_center = "rbxassetid://6031093467", align_right = "rbxassetid://6031093488",
+    bold = "rbxassetid://6031093560",
+    italic = "rbxassetid://6031093897",
+    underline = "rbxassetid://6031094073",
+    align_left = "rbxassetid://6031093479",
+    align_center = "rbxassetid://6031093467",
+    align_right = "rbxassetid://6031093488",
     -- Misc
-    star = "rbxassetid://6031094005", heart = "rbxassetid://6031093853",
-    clock = "rbxassetid://6031093571", calendar = "rbxassetid://6031093534",
-    more = "rbxassetid://6031093947", dropdown = "rbxassetid://6031093659",
-    checkbox_checked = "rbxassetid://6031093580", checkbox_unchecked = "rbxassetid://6031093606",
-    radio_selected = "rbxassetid://6031093955", radio_unselected = "rbxassetid://6031093979",
-    -- Additional (60+ more)
-    chat = "rbxassetid://6031093548", mail = "rbxassetid://6031093925",
-    send = "rbxassetid://6031093790", print = "rbxassetid://6031093970",
-    cloud = "rbxassetid://6031093593", wifi = "rbxassetid://6031094165",
-    battery = "rbxassetid://6031093521", bluetooth = "rbxassetid://6031093558",
-    camera = "rbxassetid://6031093537", mic = "rbxassetid://6031093931",
-    headphone = "rbxassetid://6031093840", gamepad = "rbxassetid://6031093821",
-    code = "rbxassetid://6031093600", terminal = "rbxassetid://6031094081",
-    database = "rbxassetid://6031093648", server = "rbxassetid://6031093960",
-    shield = "rbxassetid://6031093985", eye = "rbxassetid://6031093736",
-    eye_off = "rbxassetid://6031093720", filter = "rbxassetid://6031093758",
-    sort = "rbxassetid://6031094013", grid = "rbxassetid://6031093832",
-    list = "rbxassetid://6031093890", map = "rbxassetid://6031093928",
-    pin = "rbxassetid://6031093963", tag = "rbxassetid://6031094070",
-    award = "rbxassetid://6031093500", briefcase = "rbxassetid://6031093568",
-    bug = "rbxassetid://6031093579", calculator = "rbxassetid://6031093527",
-    credit_card = "rbxassetid://6031093632", gift = "rbxassetid://6031093819",
-    globe = "rbxassetid://6031093827", help = "rbxassetid://6031093852",
-    id_card = "rbxassetid://6031093867", lightbulb = "rbxassetid://6031093883",
-    location = "rbxassetid://6031093902", phone = "rbxassetid://6031093950",
-    printer = "rbxassetid://6031093974", shopping_cart = "rbxassetid://6031093994",
-    ticket = "rbxassetid://6031094086", trash = "rbxassetid://6031094105",
-    truck = "rbxassetid://6031094115", wallet = "rbxassetid://6031094162",
+    star = "rbxassetid://6031094005",
+    heart = "rbxassetid://6031093853",
+    clock = "rbxassetid://6031093571",
+    calendar = "rbxassetid://6031093534",
+    more = "rbxassetid://6031093947",
+    dropdown = "rbxassetid://6031093659",
+    checkbox_checked = "rbxassetid://6031093580",
+    checkbox_unchecked = "rbxassetid://6031093606",
+    radio_selected = "rbxassetid://6031093955",
+    radio_unselected = "rbxassetid://6031093979",
+    -- Additional (40+ more)
+    chat = "rbxassetid://6031093548",
+    mail = "rbxassetid://6031093925",
+    send = "rbxassetid://6031093790",
+    print = "rbxassetid://6031093970",
+    cloud = "rbxassetid://6031093593",
+    wifi = "rbxassetid://6031094165",
+    battery = "rbxassetid://6031093521",
+    bluetooth = "rbxassetid://6031093558",
+    camera = "rbxassetid://6031093537",
+    mic = "rbxassetid://6031093931",
+    headphone = "rbxassetid://6031093840",
+    gamepad = "rbxassetid://6031093821",
+    code = "rbxassetid://6031093600",
+    terminal = "rbxassetid://6031094081",
+    database = "rbxassetid://6031093648",
+    server = "rbxassetid://6031093960",
+    shield = "rbxassetid://6031093985",
+    eye = "rbxassetid://6031093736",
+    eye_off = "rbxassetid://6031093720",
+    filter = "rbxassetid://6031093758",
+    sort = "rbxassetid://6031094013",
+    grid = "rbxassetid://6031093832",
+    list = "rbxassetid://6031093890",
+    map = "rbxassetid://6031093928",
+    pin = "rbxassetid://6031093963",
+    tag = "rbxassetid://6031094070",
+    award = "rbxassetid://6031093500",
+    briefcase = "rbxassetid://6031093568",
+    bug = "rbxassetid://6031093579",
+    calculator = "rbxassetid://6031093527",
+    credit_card = "rbxassetid://6031093632",
+    gift = "rbxassetid://6031093819",
+    globe = "rbxassetid://6031093827",
+    help = "rbxassetid://6031093852",
+    id_card = "rbxassetid://6031093867",
+    lightbulb = "rbxassetid://6031093883",
+    location = "rbxassetid://6031093902",
+    phone = "rbxassetid://6031093950",
+    printer = "rbxassetid://6031093974",
+    shopping_cart = "rbxassetid://6031093994",
+    ticket = "rbxassetid://6031094086",
+    trash = "rbxassetid://6031094105",
+    truck = "rbxassetid://6031094115",
+    wallet = "rbxassetid://6031094162",
 }
 
 function IconManager:GetIcon(iconName)
@@ -272,50 +344,30 @@ function IconManager:CreateIcon(iconName, parent, size, color)
     return img
 end
 
-function IconManager:CreateIconButton(iconName, parent, callback, size, color)
+function IconManager:CreateIconButton(iconName, parent, callback, size, color, tooltip)
     local btn = createInstance("ImageButton", {
         Image = self:GetIcon(iconName),
-        Size = size or UDim2.new(0, 24, 0, 24),
+        Size = size or UDim2.new(0, 28, 0, 28),
         BackgroundTransparency = 1,
         ImageColor3 = color or getColor("Text"),
         AutoButtonColor = false,
     }, parent)
     btn.MouseButton1Click:Connect(callback)
     btn.MouseEnter:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.1), {ImageColor3 = getColor("AccentHover")}):Play()
+        TweenService:Create(btn, TweenInfo.new(0.1), {ImageColor3 = getColor("Accent")}):Play()
     end)
     btn.MouseLeave:Connect(function()
         TweenService:Create(btn, TweenInfo.new(0.1), {ImageColor3 = color or getColor("Text")}):Play()
     end)
+    if tooltip then
+        -- tooltip will be added later via section API
+    end
     return btn
 end
 
-function IconManager:CreateLabeledIcon(iconName, text, parent, orientation)
-    local frame = createInstance("Frame", {
-        Size = UDim2.new(0, 0, 0, 0),
-        BackgroundTransparency = 1,
-        AutomaticSize = Enum.AutomaticSize.XY,
-    }, parent)
-    local icon = self:CreateIcon(iconName, frame, UDim2.new(0, 20, 0, 20))
-    local label = createInstance("TextLabel", {
-        Text = text,
-        Size = UDim2.new(0, 0, 0, 20),
-        BackgroundTransparency = 1,
-        TextColor3 = getColor("Text"),
-        Font = config.Font,
-        TextSize = 12,
-        AutomaticSize = Enum.AutomaticSize.X,
-    }, frame)
-    if orientation == "horizontal" then
-        icon.Position = UDim2.new(0, 0, 0.5, -10)
-        label.Position = UDim2.new(0, 24, 0.5, -10)
-        frame.Size = UDim2.new(0, 24 + label.TextBounds.X, 0, 20)
-    else
-        icon.Position = UDim2.new(0.5, -10, 0, 0)
-        label.Position = UDim2.new(0.5, -label.TextBounds.X/2, 0, 24)
-        frame.Size = UDim2.new(0, 40, 0, 44)
-    end
-    return frame
+-- Register custom icons (user can add their own)
+function IconManager:RegisterIcon(name, assetId)
+    Icons[name] = assetId
 end
 
 SoraUI.Icons = IconManager
@@ -397,10 +449,9 @@ local function offlineValidate(key)
         return false, "Invalid format. Use XXXX-XXXX-XXXX-XXXX"
     end
     local validKeys = {
-        ["FREE-TRIAL-2025-0001"] = { expiry = os.time() + 7*86400 },
-        ["PREMIUM-ABCD-1234-EFGH"] = { expiry = os.time() + 365*86400 },
-        ["SORAUI-ULTIMATE-9999"] = { expiry = os.time() + 999*86400 },
-        ["KERCX-PRO-2026-ABCD"] = { expiry = os.time() + 730*86400 },
+        ["FREE-2025-0001-ABCD"] = { expiry = os.time() + 7*86400 },
+        ["PREMIUM-1234-5678-90EF"] = { expiry = os.time() + 365*86400 },
+        ["ULTIMATE-KERCX-2026"] = { expiry = os.time() + 999*86400 },
     }
     if validKeys[key] then
         return true, "Valid license", validKeys[key].expiry
@@ -562,7 +613,7 @@ local function processNotificationQueue()
             Position = UDim2.new(0, 34, 0, 0),
             BackgroundTransparency = 1,
             TextColor3 = getColor("Text"),
-            Font = config.FontBold,
+            Font = getFont("bold"),
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
         }, notif)
@@ -572,7 +623,7 @@ local function processNotificationQueue()
             Position = UDim2.new(0, 34, 0, 24),
             BackgroundTransparency = 1,
             TextColor3 = getColor("TextMuted"),
-            Font = config.Font,
+            Font = getFont(),
             TextSize = 12,
             TextWrapped = true,
             AutomaticSize = Enum.AutomaticSize.Y,
@@ -583,7 +634,7 @@ local function processNotificationQueue()
             Size = UDim2.new(1, 0, 0, 22),
             BackgroundTransparency = 1,
             TextColor3 = getColor("Text"),
-            Font = config.FontBold,
+            Font = getFont("bold"),
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
         }, notif)
@@ -592,7 +643,7 @@ local function processNotificationQueue()
             Size = UDim2.new(1, 0, 0, 0),
             BackgroundTransparency = 1,
             TextColor3 = getColor("TextMuted"),
-            Font = config.Font,
+            Font = getFont(),
             TextSize = 12,
             TextWrapped = true,
             AutomaticSize = Enum.AutomaticSize.Y,
@@ -753,7 +804,7 @@ local function showTooltip(text, position)
         Size = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1,
         TextColor3 = getColor("Text"),
-        Font = config.Font,
+        Font = getFont(),
         TextSize = 12,
         AutomaticSize = Enum.AutomaticSize.XY,
         TextXAlignment = Enum.TextXAlignment.Center,
@@ -850,11 +901,12 @@ function Window.new(title, size, options)
         Position = UDim2.new(0, 18, 0, 0),
         BackgroundTransparency = 1,
         TextColor3 = getColor("Text"),
-        Font = config.FontBold,
+        Font = getFont("bold"),
         TextSize = 15,
         TextXAlignment = Enum.TextXAlignment.Left,
     }, self._topBar)
     
+    -- Window buttons (icon buttons)
     if self._minimizable then
         self._minimizeBtn = IconManager:CreateIconButton("minimize", self._topBar, function()
             self:Minimize()
@@ -1013,7 +1065,7 @@ function Window:AddTab(name, icon)
         Size = UDim2.new(1, 0, 0, 40),
         BackgroundColor3 = getColor("TopBar"),
         TextColor3 = getColor("Text"),
-        Font = config.Font,
+        Font = getFont(),
         TextSize = 13,
         AutoButtonColor = false,
         LayoutOrder = #self._tabs + 1,
@@ -1050,7 +1102,7 @@ function Window:AddTab(name, icon)
     btn.MouseButton1Click:Connect(function() self:SelectTab(name) end)
     if not self._currentTab then self:SelectTab(name) end
     
-    -- Tab API (all controls)
+    -- Tab API
     local tabApi = {
         AddSection = function(sectionTitle, sectionIcon)
             local section = createInstance("Frame", {
@@ -1082,7 +1134,7 @@ function Window:AddTab(name, icon)
                     Position = UDim2.new(0, 34, 0, 0),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.FontBold,
+                    Font = getFont("bold"),
                     TextSize = 16,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, titleFrame)
@@ -1092,7 +1144,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, 0, 1, 0),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.FontBold,
+                    Font = getFont("bold"),
                     TextSize = 16,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, titleFrame)
@@ -1117,7 +1169,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, 0, 0, 42),
                     BackgroundColor3 = danger and getColor("Danger") or getColor("Accent"),
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     AutoButtonColor = false,
                 }, contentArea)
@@ -1149,7 +1201,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, -80, 1, 0),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1190,7 +1242,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, -100, 0, 28),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1200,7 +1252,7 @@ function Window:AddTab(name, icon)
                     Position = UDim2.new(1, -85, 0, 0),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("TextMuted"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Right,
                 }, frame)
@@ -1264,7 +1316,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, 0, 0, 26),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1274,7 +1326,7 @@ function Window:AddTab(name, icon)
                     Position = UDim2.new(1, -95, 0, 0),
                     BackgroundColor3 = getColor("InputBg"),
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 13,
                     ClearTextOnFocus = false,
                 }, frame)
@@ -1337,7 +1389,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, 0, 0, 28),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1348,7 +1400,7 @@ function Window:AddTab(name, icon)
                     Position = UDim2.new(0, 0, 0, 30),
                     BackgroundColor3 = getColor("InputBg"),
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 13,
                     ClearTextOnFocus = false,
                 }, frame)
@@ -1375,7 +1427,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(0.5, -10, 1, 0),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1385,7 +1437,7 @@ function Window:AddTab(name, icon)
                     Position = UDim2.new(0.5, 10, 0.5, -19),
                     BackgroundColor3 = getColor("DropdownBg"),
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 13,
                     AutoButtonColor = false,
                 }, frame)
@@ -1418,7 +1470,7 @@ function Window:AddTab(name, icon)
                             Size = UDim2.new(1, 0, 0, 34),
                             BackgroundTransparency = 1,
                             TextColor3 = getColor("Text"),
-                            Font = config.Font,
+                            Font = getFont(),
                             TextSize = 13,
                             AutoButtonColor = false,
                         }, dropdown)
@@ -1448,7 +1500,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(0.7, -10, 1, 0),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1517,7 +1569,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(0.7, -10, 1, 0),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1527,7 +1579,7 @@ function Window:AddTab(name, icon)
                     Position = UDim2.new(1, -140, 0.5, -19),
                     BackgroundColor3 = getColor("InputBg"),
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 13,
                 }, frame)
                 applyCorner(keyBtn, 8)
@@ -1573,7 +1625,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, 0, 0, 28),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1596,7 +1648,7 @@ function Window:AddTab(name, icon)
                     Position = UDim2.new(1, -85, 0, 0),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("TextMuted"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 12,
                     TextXAlignment = Enum.TextXAlignment.Right,
                 }, frame)
@@ -1629,7 +1681,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, 0, 0, 30),
                     BackgroundTransparency = 1,
                     TextColor3 = muted and getColor("TextMuted") or getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = fontSize or 12,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, contentArea)
@@ -1643,7 +1695,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, 0, 0, 0),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("TextMuted"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 12,
                     TextWrapped = true,
                     AutomaticSize = Enum.AutomaticSize.Y,
@@ -1681,7 +1733,7 @@ function Window:AddTab(name, icon)
                     Position = UDim2.new(0, 34, 0, 0),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1708,7 +1760,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, 0, 0, 32),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.FontBold,
+                    Font = getFont("bold"),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1747,7 +1799,7 @@ function Window:AddTab(name, icon)
                         Position = UDim2.new(0, 32, 0, 0),
                         BackgroundTransparency = 1,
                         TextColor3 = getColor("Text"),
-                        Font = config.Font,
+                        Font = getFont(),
                         TextSize = 13,
                         TextXAlignment = Enum.TextXAlignment.Left,
                     }, row)
@@ -1773,7 +1825,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, 0, 0, 46),
                     BackgroundColor3 = getColor("Card"),
                     TextColor3 = getColor("Text"),
-                    Font = config.FontBold,
+                    Font = getFont("bold"),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                     AutoButtonColor = false,
@@ -1819,7 +1871,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, 0, 0, 28),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1850,7 +1902,7 @@ function Window:AddTab(name, icon)
                         Size = UDim2.new(1, 0, 0, 32),
                         BackgroundColor3 = (item == default) and getColor("Accent") or getColor("CardHover"),
                         TextColor3 = getColor("Text"),
-                        Font = config.Font,
+                        Font = getFont(),
                         TextSize = 13,
                         AutoButtonColor = false,
                     }, listScroller)
@@ -1868,7 +1920,7 @@ function Window:AddTab(name, icon)
                             Size = UDim2.new(1, 0, 0, 32),
                             BackgroundColor3 = getColor("CardHover"),
                             TextColor3 = getColor("Text"),
-                            Font = config.Font,
+                            Font = getFont(),
                             TextSize = 13,
                             AutoButtonColor = false,
                         }, listScroller)
@@ -1889,7 +1941,7 @@ function Window:AddTab(name, icon)
                 }
             end
             
-            -- TreeView (simple)
+            -- TreeView
             function sectionApi:AddTreeView(text, treeData, callback)
                 local frame = createInstance("Frame", {
                     Size = UDim2.new(1, 0, 0, 200),
@@ -1900,7 +1952,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, 0, 0, 28),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1923,7 +1975,7 @@ function Window:AddTab(name, icon)
                             Size = UDim2.new(1, 0, 0, 30),
                             BackgroundColor3 = getColor("CardHover"),
                             TextColor3 = getColor("Text"),
-                            Font = config.Font,
+                            Font = getFont(),
                             TextSize = 13,
                             TextXAlignment = Enum.TextXAlignment.Left,
                             AutoButtonColor = false,
@@ -1961,7 +2013,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, 0, 0, 28),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1976,7 +2028,7 @@ function Window:AddTab(name, icon)
                 return canvas
             end
             
-            -- Simple Chart (line chart)
+            -- Line Chart
             function sectionApi:AddLineChart(text, dataPoints, width, height)
                 local frame = createInstance("Frame", {
                     Size = UDim2.new(1, 0, 0, height + 50),
@@ -1987,7 +2039,7 @@ function Window:AddTab(name, icon)
                     Size = UDim2.new(1, 0, 0, 28),
                     BackgroundTransparency = 1,
                     TextColor3 = getColor("Text"),
-                    Font = config.Font,
+                    Font = getFont(),
                     TextSize = 14,
                     TextXAlignment = Enum.TextXAlignment.Left,
                 }, frame)
@@ -1998,7 +2050,6 @@ function Window:AddTab(name, icon)
                     BorderSizePixel = 0,
                 }, frame)
                 applyCorner(chartArea, 8)
-                -- Draw simple line using frames (very basic)
                 if #dataPoints > 1 then
                     local maxVal = math.max(unpack(dataPoints))
                     local minVal = math.min(unpack(dataPoints))
@@ -2018,6 +2069,55 @@ function Window:AddTab(name, icon)
                     end
                 end
                 return chartArea
+            end
+            
+            -- Console (text output)
+            function sectionApi:AddConsole(text, lines)
+                local frame = createInstance("Frame", {
+                    Size = UDim2.new(1, 0, 0, 200),
+                    BackgroundTransparency = 1,
+                }, contentArea)
+                local label = createInstance("TextLabel", {
+                    Text = text,
+                    Size = UDim2.new(1, 0, 0, 28),
+                    BackgroundTransparency = 1,
+                    TextColor3 = getColor("Text"),
+                    Font = getFont(),
+                    TextSize = 14,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                }, frame)
+                local consoleBg = createInstance("ScrollingFrame", {
+                    Size = UDim2.new(1, 0, 0, 160),
+                    Position = UDim2.new(0, 0, 0, 32),
+                    BackgroundColor3 = getColor("InputBg"),
+                    BorderSizePixel = 0,
+                    ScrollBarThickness = config.ScrollBarThickness,
+                }, frame)
+                applyCorner(consoleBg, 8)
+                local textLabel = createInstance("TextLabel", {
+                    Text = "",
+                    Size = UDim2.new(1, -10, 0, 0),
+                    BackgroundTransparency = 1,
+                    TextColor3 = getColor("Text"),
+                    Font = getFont(),
+                    TextSize = 12,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextYAlignment = Enum.TextYAlignment.Top,
+                    TextWrapped = true,
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                }, consoleBg)
+                local function addLine(line)
+                    textLabel.Text = textLabel.Text .. line .. "\n"
+                    consoleBg.CanvasSize = UDim2.new(0, 0, 0, textLabel.AbsoluteSize.Y)
+                    consoleBg.ScrollBarThickness = config.ScrollBarThickness
+                end
+                for _, line in ipairs(lines or {}) do
+                    addLine(line)
+                end
+                return {
+                    AddLine = addLine,
+                    Clear = function() textLabel.Text = "" end
+                }
             end
             
             -- Tooltip helper
